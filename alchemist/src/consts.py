@@ -1,0 +1,7 @@
+ADJUSTED_CLOSE = 'AdjClose'
+CLOSE = 'Close'
+DATE = 'Date'
+HIGH = 'High'
+LOW = 'Low'
+OPEN = 'Open'
+VOLUME = 'Volume'

@@ -1,0 +1,6 @@
+// https://stackoverflow.com/questions/53653083/how-to-correctly-set-pythonpath-for-visual-studio-code
+{
+    "python.pythonPath": "/home/danilo/anaconda3/envs/alchemist/bin/python",    
+    "jupyter.notebookFileRoot": "${workspaceFolder}",
+    "terminal.integrated.env.osx": {"PYTHONPATH": "${workspaceFolder}"},    
+}
