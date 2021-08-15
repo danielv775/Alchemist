@@ -25,7 +25,8 @@ def load_market_data(
     interval: str = '60min',
     invalidate_cache: bool = True,
     cache_folder=f"{os.environ['PYTHONPATH']}alchemist/data",
-) -> dict:
+    return_dict:bool=True
+):
     """ Load market data
 
     Args:
@@ -37,18 +38,20 @@ def load_market_data(
         interval (str, optional): Interval for intraday market data'60min'.
         invalidate_cache (bool, optional): if set to true, downloads market data from internet else uses csv files in cache_folder
         cache_folder (str, optional): Directory where cached market data is stored 'data'.
+        return_dict(bool, optional): True to return a dict of DataFrames or False to return a multiindex DataFrame
 
     Returns:
         [dict]: Dictionary of dataframes {'stock_symbol': pd.DataFrame}
+        or
+        [DataFrame]: Multiindex dataframes with axes[0] Date Index and axes[1] a Multiindex of [Symbol, Features]
     """
 
-    market_data = {}   
-
+    market_data_dict = {}
     
     if not invalidate_cache:
         
         try:
-            market_data = read_cached_market_data(symbols, cache_folder, intraday)            
+            market_data_dict = read_cached_market_data(symbols, cache_folder, intraday)            
         
         except FileNotFoundError:
             invalidate_cache = True
@@ -59,7 +62,7 @@ def load_market_data(
         if intraday:                    
                 
             # Get brand new data
-            market_data = download_intraday_market_data(
+            market_data_dict = download_intraday_market_data(
                 symbols=symbols,
                 months=months,
                 interval=interval,
@@ -68,15 +71,34 @@ def load_market_data(
 
         else: 
 
-            market_data = download_daily_market_data(
+            market_data_dict = download_daily_market_data(
                 symbols,
                 start_date,
                 end_date,
                 cache_folder=cache_folder
             )
-        
-    return market_data
 
+    # Returns either a dict of DataFrames or a multiindex DataFrame
+    if return_dict:
+        # Returns a dict of DataFrames where keys are the stock symbols, for example:
+        # {'TSLA':                   Hi...6 columns], 'AAPL':                   Hi...6 columns]}
+
+        return market_data_dict
+    
+    else:
+        # Returns a Multiindex DataFrame, for example:
+        #                   TSLA                                                                    AAPL                                                             
+        #                   High         Low        Open       Close      Volume    AdjClose        High         Low        Open       Close       Volume    AdjClose
+        # Date                                                                                                                                                       
+        # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998   39.712502   38.557499   38.722500   39.480000  148158800.0   38.382229
+        # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999   36.430000   35.500000   35.994999   35.547501  365248800.0   34.559078
+        # 2019-01-04   63.599998   60.546001   61.200001   63.537998  36970500.0   63.537998   37.137501   35.950001   36.132500   37.064999  234428400.0   36.034370        
+        
+        market_data_df = pd.concat(market_data_dict, axis=1)
+
+        market_data_df = market_data_df.rename_axis(DATE).rename_axis([SYMBOLS, FEATURES], axis='columns')
+
+        return market_data_df
 
 
 def read_cached_market_data(symbols:list, cache_folder:str, intraday:bool) -> dict:    
@@ -92,7 +114,22 @@ def read_cached_market_data(symbols:list, cache_folder:str, intraday:bool) -> di
         try:
             data = pd.read_csv(filename, parse_dates=[DATE])
 
-            data.set_index('Date', inplace=True)
+            data.set_index(DATE, inplace=True)
+            
+            # Add name to columns, for example:
+            # From this:
+            #                   High         Low        Open       Close      Volume    AdjClose
+            # Date                                                                              
+            # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
+            # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
+            #
+            # To this:
+            # Features          High         Low        Open       Close      Volume    AdjClose
+            # Date                                                                              
+            # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
+            # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
+            data = data.rename_axis(DATE).rename_axis(FEATURES, axis='columns')
+
             market_data[symbol] = data
 
         except FileNotFoundError as e:
@@ -133,7 +170,8 @@ def download_daily_market_data(symbols: list, start_date: datetime, end_date: da
 
         df = pdr.DataReader(symbol, data_source, start_date, end_date)
 
-        df.rename(
+        # Renaming column names
+        df = df.rename(
             columns={'High': HIGH,
                      'Low': LOW,
                      'Open': OPEN,
@@ -145,6 +183,20 @@ def download_daily_market_data(symbols: list, start_date: datetime, end_date: da
 
         if cache_folder is not None:
             df.to_csv(_get_daily_filename(cache_folder, symbol))
+
+        # Add name to columns, for example:
+        # From this:
+        #                   High         Low        Open       Close      Volume    AdjClose
+        # Date                                                                              
+        # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
+        # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
+        #
+        # To this:
+        # Features          High         Low        Open       Close      Volume    AdjClose
+        # Date                                                                              
+        # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
+        # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
+        df = df.rename_axis(DATE).rename_axis(FEATURES, axis='columns')
 
         market_data[symbol] = df
 
@@ -185,6 +237,20 @@ def download_intraday_market_data(symbols: list,
 
         if cache_folder is not None:
             data.to_csv(_get_intraday_filename(cache_folder, symbol))
+
+        # Add name to columns, for example:
+        # From this:
+        #                   High         Low        Open       Close      Volume    AdjClose
+        # Date                                                                              
+        # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
+        # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
+        #
+        # To this:
+        # Features          High         Low        Open       Close      Volume    AdjClose
+        # Date                                                                              
+        # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
+        # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
+        data = data.rename_axis(DATE).rename_axis(FEATURES, axis='columns')            
 
         market_data[symbol] = data
 
