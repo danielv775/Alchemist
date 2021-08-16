@@ -258,3 +258,25 @@ if __name__ == '__main__':
     # SMA calculator will calculate SMAs for SPY and will merge with input market data (merge_with_market_data=True)
     spy_sma_and_market_data = sma.calculate(spy_market_data_dict['SPY'], merge_with_market_data=True)
     print(spy_sma_and_market_data)
+
+    # ----------------------------------------------
+
+    # Ways to slice market data
+    daily_market_data = load_market_data(['TSLA', 'AAPL'], start, end, invalidate_cache=False, return_dict=False)
+
+    # Market data indexes are:
+    print(daily_market_data.axes[0])
+    print(daily_market_data.axes[1])
+    
+    # Getting High values between 2019-01-03 and 2019-01-07
+    result = daily_market_data['TSLA'][HIGH].loc['2019-01-03':'2019-01-08']
+    print(result)
+
+    # Getting open values for TSLA and AAPL    
+    result = daily_market_data.loc[:, (slice(None), OPEN)]
+    print(result)
+
+
+    # Getting open values for TSLA and AAPL between 2019-01-03 and 2019-01-07
+    result = daily_market_data.loc['2019-01-03':'2019-01-08', (slice(None), OPEN)]
+    print(result)
