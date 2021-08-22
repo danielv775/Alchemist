@@ -135,8 +135,8 @@ class SMA(TechnicalIndicator):
     
     def _calculate(self, single_symbol_data:DataFrame):        
 
-        # Slice the dataframe with a list market_data[[self.price_column_name]] to return a DataFrame
-        # instead of string like market_data[self.price_column_name] which returns a Series        
+        # Slice the dataframe with a list single_symbol_data[[self.price_column_name]] to return a DataFrame
+        # instead of string like single_symbol_data[self.price_column_name] which returns a Series        
         prices = single_symbol_data[[self.price_column_name]]
 
         # Check if there is any missing values
