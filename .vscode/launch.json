@@ -26,6 +26,7 @@
             "console": "integratedTerminal",
             "cwd": "${fileDirname}",
             "env": {"PYTHONPATH": "${workspaceFolder}${pathSeparator}${env:PYTHONPATH}"}
+            // python.defaultInterpreterPath
         }
     ]
 }

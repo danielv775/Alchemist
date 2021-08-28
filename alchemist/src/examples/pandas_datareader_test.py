@@ -49,7 +49,7 @@ if __name__ == '__main__':
     start = dt.datetime(2021, 7, 8)   # 2021-07-08
     end = dt.datetime(2021, 8, 6)  # 2021-08-06
 
-    ALPHA_VANTAGE_TOKEN = 'NR0WZUP4YXRR1VTE'
+    ALPHA_VANTAGE_TOKEN = os.getenv('ALPHA_VANTAGE_TOKEN')
 
     df = pdr.get_data_alphavantage(symbols='AAPL',
                               #function='TIME_SERIES_DAILY',
