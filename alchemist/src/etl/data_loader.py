@@ -24,7 +24,7 @@ def load_market_data(
     intraday: bool = False,
     interval: str = '60min',
     invalidate_cache: bool = True,
-    cache_folder=f"{os.environ['PYTHONPATH']}alchemist/data",
+    cache_folder=f"{os.environ['PYTHONPATH']}/alchemist/data",
     return_dict:bool=True
 ):
     """ Load market data
