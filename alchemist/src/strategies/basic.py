@@ -11,6 +11,28 @@ import datetime as dt
 from alchemist.src.strategies.trader import Trader
 from pandas.core.frame import DataFrame
 
+class HODLer(Trader):
+    def __init__(self, name: str, impact: float=0.0):
+        super().__init__(name, impact)
+    
+    def trade(self, symbol: str, start_date: datetime=(2020, 1, 1), end_date: datetime=(2020, 12, 31), start_value: float=10000) -> DataFrame:
+
+        # Loading daily market data
+        data = load_market_data([symbol], start_date, end_date, return_dict=False, invalidate_cache=False)[symbol]
+
+        trades = pd.DataFrame(0, index=data.index, columns=[symbol, 'USD'])
+
+        start_date = trades.index[0]
+
+        # Buy Once 
+        price = data.loc[start_date, ADJUSTED_CLOSE]
+        units = start_value / price
+
+        trades.loc[start_date, symbol] = units
+        trades.loc[start_date, 'USD'] = -1*start_value 
+
+        return trades
+
 class BasicTrader(Trader):
 
     def __init__(self, name: str, impact: float=0.0):

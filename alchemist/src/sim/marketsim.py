@@ -2,7 +2,7 @@
 
 import pandas as pd
 
-from alchemist.src.strategies.basic import BasicTrader
+from alchemist.src.strategies.basic import BasicTrader, HODLer
 from pandas.core.frame import DataFrame
 
 from alchemist.src.etl.data_loader import load_market_data
@@ -29,7 +29,7 @@ class MarketSim():
         start_date = trades.index[0]
         end_date = trades.index[-1]
 
-        # Can infer what interval data to get based on trades datetime index
+        # Can infer what interval data to get based on trades datetime index, add conditions for this later
         data = load_market_data(symbols, start_date, end_date, return_dict=False, invalidate_cache=False)
         prices = data.loc[:, (symbols, ADJUSTED_CLOSE)] 
 
@@ -55,9 +55,16 @@ if __name__ == '__main__':
     
     # Trading Decisions 
     trader = BasicTrader('Basic')
-    trades = trader.trade(symbol='SQ')
+    trades = trader.trade(symbol='SQ')    
+
+    hodler = HODLer('HODL')
+    hodler_trades = hodler.trade(symbol='SQ')
 
     # Impact on Portfolio over time
     sim = MarketSim()
-    portfolio = sim.calculate_portfolio(trades)
+    portfolio_trader = sim.calculate_portfolio(trades)
+
+    portfolio_hodler = sim.calculate_portfolio(hodler_trades)
+
+
 
