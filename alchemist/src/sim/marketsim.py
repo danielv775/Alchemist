@@ -14,10 +14,10 @@ class MarketSim():
         pass
 
     def calculate_portfolio(self, trades: DataFrame, start_value:float=10000.0) -> DataFrame:
-        """ Simulate how trades affect the positions in the portfolio and their value
+        """ Simulate how trades affect the positions in the portfolio and their value over time
 
         Args:
-            trades (DataFrame): trades
+            trades (DataFrame): trades made on each day, defined by change in any asset +/-
             start_value (float, optional): initial value in USD. Defaults to 10000.0.
 
         Returns:
@@ -29,6 +29,7 @@ class MarketSim():
         start_date = trades.index[0]
         end_date = trades.index[-1]
 
+        # Can infer what interval data to get based on trades datetime index
         data = load_market_data(symbols, start_date, end_date, return_dict=False, invalidate_cache=False)
         prices = data.loc[:, (symbols, ADJUSTED_CLOSE)] 
 
@@ -41,7 +42,11 @@ class MarketSim():
 
         symbols_USD = [f'{s}_USD' for s in symbols if s != 'USD']
         symbols_USD.append('USD')
-        asset_value = pd.DataFrame(prices[portfolio.columns].values * portfolio.values, index=portfolio.index, columns=symbols_USD) 
+        asset_value = pd.DataFrame(prices[portfolio.columns].values * portfolio.values, index=portfolio.index, columns=symbols_USD)
+        asset_value['USD_Total'] = asset_value.sum(axis=1) 
+
+        cols = asset_value.columns.difference(portfolio.columns)
+        portfolio = portfolio.merge(asset_value[cols], left_index=True, right_index=True)
               
         return portfolio
 
