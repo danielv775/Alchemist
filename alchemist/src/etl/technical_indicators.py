@@ -95,14 +95,16 @@ class TechnicalIndicator(ABC):
         
         df = self._calculate(market_data)
 
-        # Renaming the first column (the only one) to the indicator name
+        # Renaming the first column to use the indicator name
+        # df will have only one column for most indicators 
+        # (unless the indicator creates other columns, like signals in MACD) 
         df.rename(columns = {list(df)[0]: self.name}, inplace=True)
 
         return df      
 
 
     @abstractmethod
-    def _calculate(self, single_symbol_data:DataFrame):
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:
         """Implements the specified technical indicator calculation.
         This function must be implemented in the children classes.
 
@@ -116,6 +118,11 @@ class TechnicalIndicator(ABC):
             2019-01-04  253.110001  247.169998  247.589996  252.389999  142628800.0  241.574493            
             (...)
 
+
+        Returns:
+            DataFrame: A dataframe whose first column will be renamed automatically by self.name
+                The implementation of most of indicators should return only one column, unless the indicator
+                has auxiliary curves like MACD or Bollinger Bands (the auxiliary curves should be 2nd column and after).
         """
 
         # Implement this method in the child class
@@ -133,7 +140,7 @@ class SMA(TechnicalIndicator):
         super().__init__(name)
 
     
-    def _calculate(self, single_symbol_data:DataFrame):        
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:        
 
         # Slice the dataframe with a list single_symbol_data[[self.price_column_name]] to return a DataFrame
         # instead of string like single_symbol_data[self.price_column_name] which returns a Series        
@@ -159,7 +166,7 @@ class PriceBySMA(TechnicalIndicator):
         super().__init__(name)
 
     
-    def _calculate(self, single_symbol_data:DataFrame):        
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:        
 
         # Slice the dataframe with a list market_data[[self.price_column_name]] to return a DataFrame
         # instead of string like market_data[self.price_column_name] which returns a Series        
@@ -177,6 +184,7 @@ class PriceBySMA(TechnicalIndicator):
 
 
 class BBP(TechnicalIndicator):
+    # https://school.stockcharts.com/doku.php?id=technical_indicators:bollinger_band_perce
 
     def __init__(self, name:str, window_size:int, price_column_name:str=ADJUSTED_CLOSE):
 
@@ -187,9 +195,13 @@ class BBP(TechnicalIndicator):
         super().__init__(name)
 
     
-    def _calculate(self, single_symbol_data:DataFrame):  
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:  
 
         prices = single_symbol_data[[self.price_column_name]]
+
+        # Check if there is any missing values
+        if prices.isnull().values.any():
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')        
 
         sma = prices.rolling(self.window_size).mean()
 
@@ -203,6 +215,84 @@ class BBP(TechnicalIndicator):
 
         return result        
 
+
+class ROC(TechnicalIndicator):
+    # https://www.investopedia.com/terms/p/pricerateofchange.asp
+
+    def __init__(self, name:str, window_size:int, price_column_name:str=ADJUSTED_CLOSE):
+
+        self.price_column_name = price_column_name
+
+        self.window_size = window_size
+        
+        super().__init__(name)
+
+    
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:  
+
+        prices = single_symbol_data[[self.price_column_name]]
+
+        # Check if there is any missing values
+        if prices.isnull().values.any():
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')        
+        
+        result = prices.pct_change(self.window_size, fill_method='ffill')
+
+        return result  
+
+
+class MACD(TechnicalIndicator):
+    # https://school.stockcharts.com/doku.php?id=technical_indicators:moving_average_convergence_divergence_macd
+    # https://investexcel.net/how-to-calculate-macd-in-excel/
+
+    def __init__(
+        self, 
+        name:str, 
+        signal_name:str, 
+        short_window:int=12, 
+        long_window:int=26, 
+        signal_window:int=9, 
+        price_column_name:str=ADJUSTED_CLOSE
+        ):
+        
+        self.signal_name = signal_name
+        self.short_window = short_window
+        self.long_window = long_window
+        self.signal_window = signal_window
+        self.price_column_name = price_column_name
+        
+        super().__init__(name)
+
+    
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:  
+
+        prices = single_symbol_data[[self.price_column_name]]
+
+        # Check if there is any missing values
+        if prices.isnull().values.any():
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')
+
+        short_prices = prices.copy()
+
+        short_prices[0:self.short_window-1] = short_prices[0:self.short_window-1].mean()
+        
+        short_ema = short_prices.ewm(span=self.short_window, adjust=False, min_periods=self.long_window).mean()
+
+
+        long_prices = prices.copy()
+
+        long_prices[0:self.long_window-1] = long_prices[0:self.long_window-1].mean()
+
+        long_ema = long_prices.ewm(span=self.long_window, adjust=False, min_periods=self.long_window).mean()
+
+        signal_ema = prices.ewm(span=self.signal_window, adjust=False).mean()
+
+        result = short_ema - long_ema
+        
+
+        result[self.signal_name] = signal_ema
+
+        return result  
 
 # TODO Create more indicators like SMA and PriceBySMA (just create a class with __init__ and _caluclate functions)
 
