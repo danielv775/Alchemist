@@ -244,6 +244,7 @@ class ROC(TechnicalIndicator):
 class MACD(TechnicalIndicator):
     # https://school.stockcharts.com/doku.php?id=technical_indicators:moving_average_convergence_divergence_macd
     # https://investexcel.net/how-to-calculate-macd-in-excel/
+    # https://www.learnpythonwithrune.org/calucate-macd-with-pandas-dataframes/
 
     def __init__(
         self, 
