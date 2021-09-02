@@ -270,26 +270,18 @@ class MACD(TechnicalIndicator):
 
         # Check if there is any missing values
         if prices.isnull().values.any():
-            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')
-
-        short_prices = prices.copy()
-
-        short_prices[0:self.short_window-1] = short_prices[0:self.short_window-1].mean()
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')        
         
-        short_ema = short_prices.ewm(span=self.short_window, adjust=False, min_periods=self.long_window).mean()
+        
+        short_ema = prices.ewm(span=self.short_window, adjust=False).mean()
 
+        long_ema = prices.ewm(span=self.long_window, adjust=False).mean()        
 
-        long_prices = prices.copy()
-
-        long_prices[0:self.long_window-1] = long_prices[0:self.long_window-1].mean()
-
-        long_ema = long_prices.ewm(span=self.long_window, adjust=False, min_periods=self.long_window).mean()
-
-        signal_ema = prices.ewm(span=self.signal_window, adjust=False).mean()
-
+        # MACD
         result = short_ema - long_ema
-        
 
+        # Adding the signal line to the dataframe
+        signal_ema = result.ewm(span=self.signal_window, adjust=False).mean()
         result[self.signal_name] = signal_ema
 
         return result  
