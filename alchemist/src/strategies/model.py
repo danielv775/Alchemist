@@ -26,7 +26,7 @@ class ModelTrader(Trader):
         """
         pass
     
-    def trade(self, symbol: str, start_date: datetime=(2020, 1, 1), end_date: datetime=(2020, 12, 31), start_value: float=10000) -> DataFrame:
+    def trade(self, symbol: str, start_date: datetime=datetime(2020, 1, 1), end_date: datetime=datetime(2020, 12, 31), start_value: float=10000) -> DataFrame:
         pass
 
 if __name__ == '__main__':

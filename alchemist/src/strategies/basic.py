@@ -15,7 +15,7 @@ class HODLer(Trader):
     def __init__(self, name: str, impact: float=0.0):
         super().__init__(name, impact)
     
-    def trade(self, symbol: str, start_date: datetime=(2020, 1, 1), end_date: datetime=(2020, 12, 31), start_value: float=10000) -> DataFrame:
+    def trade(self, symbol: str, start_date: datetime=datetime(2020, 1, 1), end_date: datetime=datetime(2020, 12, 31), start_value: float=10000) -> DataFrame:
 
         # Loading daily market data
         data = load_market_data([symbol], start_date, end_date, return_dict=False, invalidate_cache=False)[symbol]
@@ -38,7 +38,7 @@ class BasicTrader(Trader):
     def __init__(self, name: str, impact: float=0.0):
         super().__init__(name, impact)
         
-    def trade(self, symbol: str, start_date: datetime=(2020, 1, 1), end_date: datetime=(2020, 12, 31), start_value: float=10000) -> DataFrame:
+    def trade(self, symbol: str, start_date: datetime=datetime(2020, 1, 1), end_date: datetime=datetime(2020, 12, 31), start_value: float=10000) -> DataFrame:
         
         # Loading daily market data
         daily_market_data = load_market_data(
