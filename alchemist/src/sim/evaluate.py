@@ -4,9 +4,28 @@ from alchemist.src.sim.marketsim import MarketSim
 import numpy as np
 import os
 
+from alchemist.src.consts import *
+
+from alchemist.src.etl.data_loader import load_market_data
+
 import matplotlib.pyplot as plt
 
-def evaluate_portfolio(portfolio):
+from pandas.core.frame import DataFrame
+
+def evaluate_portfolio(portfolio: DataFrame) -> (float, float, float, float):
+
+    """ Evaluate a portfolio with key metrics (cumulative return, mean daily return, std daily return, sharpe ratio)
+
+    Args:
+        portfolio (dataframe): dataframe with portfolio values
+
+    Returns:
+        cumulative_return (float): 
+        mean_daily_return (float): 
+        std_daily_return (float): 
+        sharpe_ratio (float): 
+
+    """
 
 	cumulative_return = np.round((portfolio.values[-1]/portfolio.values[0]), 2)
 	daily_returns = (portfolio.values[1:]/portfolio.values[:-1]) - 1
@@ -17,7 +36,10 @@ def evaluate_portfolio(portfolio):
 
 	return cumulative_return, mean_daily_return, std_daily_return, sharpe_ratio
 
-def print_portfolio_metrics(portfolio):
+def print_portfolio_metrics(portfolio: DataFrame):
+
+    """ Print portfolio metrics
+    """
     
     cumulative_return, mean_daily_return, std_daily_return, sharpe_ratio = evaluate_portfolio(portfolio)
 
@@ -25,8 +47,53 @@ def print_portfolio_metrics(portfolio):
     print(f'Mean Daily Return: {mean_daily_return}')
     print(f'Std Daily Return: {std_daily_return}')
     print(f'Sharpe Ratio (Annualized): {sharpe_ratio}')
+
+def plot_trades(portfolio: DataFrame, trades: DataFrame, title: str, fp: str=f'{os.environ["PYTHONPATH"]}/alchemist/src/sim/graphs'):
+
+    """ Plot trades as vertical lines on price graph. Green=Buy, Red=Sell
+
+    Args:
+        portfolio (dataframe):
+        trades (dataframe):
+        title (str):
+        fp (str):
+    """
+
+    sd = trades.index[0]
+    ed = trades.index[-1]
+
+    symbol = trades.columns[0]
+
+    data = load_market_data(
+    [symbol], start_date=sd, end_date=ed, return_dict=False, invalidate_cache=False)
     
-def plot_portfolios(portfolios, fp=f'{os.environ["PYTHONPATH"]}/alchemist/src/sim/graphs'):
+    price = data[(symbol, ADJUSTED_CLOSE)]
+
+    actions = trades[trades[symbol] != 0.0]
+    for a in actions.iterrows():
+        
+        timestamp = a[0]
+        asset_change = a[1][symbol]
+
+        if asset_change > 0:
+            plt.axvline(timestamp, c='green')
+        else:
+            plt.axvline(timestamp, c='red')
+    
+    plt.plot(price.index, price.values, label='price')
+
+    plt.title(f'{symbol} Trades')
+    plt.xlabel('Date')
+    plt.ylabel('Price (USD)')
+    plt.xticks(rotation=30)
+    plt.savefig(f'{fp}/{title}.png')
+    plt.close()
+
+
+def plot_portfolios(portfolio: DataFrame, title: str, fp: str=f'{os.environ["PYTHONPATH"]}/alchemist/src/sim/graphs'):
+
+    """ Plot multiple portfolio against one another
+    """
 
     for strategy, portfolio in portfolios.items():
         plt.plot(portfolio.index, portfolio.values, label=strategy)
@@ -36,7 +103,8 @@ def plot_portfolios(portfolios, fp=f'{os.environ["PYTHONPATH"]}/alchemist/src/si
     plt.ylabel('Portfolio Value (USD)')
     plt.legend(loc='best')
     plt.xticks(rotation=30)
-    plt.savefig(f'{fp}/compare.png')
+    plt.savefig(f'{fp}/{title}.png')
+    plt.close()
         
 if __name__ == '__main__':
     
@@ -50,8 +118,6 @@ if __name__ == '__main__':
     # Impact on Portfolio over time
     sim = MarketSim()
     portfolio_trader = sim.calculate_portfolio(trades)
-    portfolio_trader.to_csv('t.csv')
-
     portfolio_hodler = sim.calculate_portfolio(hodler_trades)
 
     # Evaluate
@@ -68,6 +134,8 @@ if __name__ == '__main__':
         'HODLer': portfolio_hodler['USD_Total']
     }
 
-    plot_portfolios(portfolios)
+    plot_portfolios(portfolios, title='compare')
+
+    plot_trades(portfolio_trader, trades, title='Trades')
 
 
