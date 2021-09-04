@@ -27,14 +27,14 @@ def evaluate_portfolio(portfolio: DataFrame) -> (float, float, float, float):
 
     """
 
-	cumulative_return = np.round((portfolio.values[-1]/portfolio.values[0]), 2)
-	daily_returns = (portfolio.values[1:]/portfolio.values[:-1]) - 1
+    cumulative_return = np.round((portfolio.values[-1]/portfolio.values[0]), 2)
+    daily_returns = (portfolio.values[1:]/portfolio.values[:-1]) - 1
 
-	mean_daily_return = np.round(daily_returns.mean(), 5)
-	std_daily_return = np.round(daily_returns.std(), 5)
-	sharpe_ratio = np.round((len(portfolio)**0.5) * (mean_daily_return/std_daily_return), 2)
+    mean_daily_return = np.round(daily_returns.mean(), 5)
+    std_daily_return = np.round(daily_returns.std(), 5)
+    sharpe_ratio = np.round((len(portfolio)**0.5) * (mean_daily_return/std_daily_return), 2)
 
-	return cumulative_return, mean_daily_return, std_daily_return, sharpe_ratio
+    return cumulative_return, mean_daily_return, std_daily_return, sharpe_ratio
 
 def print_portfolio_metrics(portfolio: DataFrame):
 
