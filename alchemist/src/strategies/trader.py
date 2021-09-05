@@ -8,7 +8,7 @@ from pandas.core.frame import DataFrame
 
 class Trader(ABC):
 
-    def __init__(self, name: str, impact: float=0.0):
+    def __init__(self, name: str, impact: float=0.0, window: int=7):
         """Init for Abstract Trader 
 
         Args:
@@ -16,6 +16,7 @@ class Trader(ABC):
         """
         self.name = name
         self.impact = impact
+        self.window = window
     
     @abstractmethod
     def trade(self, symbol: str, start_date: datetime, end_date: datetime, start_value: float) -> DataFrame:

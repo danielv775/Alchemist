@@ -1,5 +1,6 @@
 
 from alchemist.src.strategies.basic import BasicTrader, HODLer
+from alchemist.src.strategies.model import SKTrader
 from alchemist.src.sim.marketsim import MarketSim
 import numpy as np
 import os
@@ -11,6 +12,11 @@ from alchemist.src.etl.data_loader import load_market_data
 import matplotlib.pyplot as plt
 
 from pandas.core.frame import DataFrame
+
+from sklearn.ensemble import RandomForestRegressor
+from sklearn.tree import DecisionTreeRegressor
+
+from datetime import datetime
 
 def evaluate_portfolio(portfolio: DataFrame) -> (float, float, float, float):
 
@@ -47,6 +53,10 @@ def print_portfolio_metrics(portfolio: DataFrame):
     print(f'Mean Daily Return: {mean_daily_return}')
     print(f'Std Daily Return: {std_daily_return}')
     print(f'Sharpe Ratio (Annualized): {sharpe_ratio}')
+    
+    print(f'Start: {portfolio.values[0]}')
+    print(f'End: {portfolio.values[-1]}')
+    print(f'$Profit: {portfolio.values[-1] - portfolio.values[0]}')
 
 def plot_trades(portfolio: DataFrame, trades: DataFrame, title: str, fp: str=f'{os.environ["PYTHONPATH"]}/alchemist/src/sim/graphs'):
 
@@ -82,7 +92,7 @@ def plot_trades(portfolio: DataFrame, trades: DataFrame, title: str, fp: str=f'{
     
     plt.plot(price.index, price.values, label='price')
 
-    plt.title(f'{symbol} Trades')
+    plt.title(title)
     plt.xlabel('Date')
     plt.ylabel('Price (USD)')
     plt.xticks(rotation=30)
@@ -107,11 +117,16 @@ def plot_portfolios(portfolio: DataFrame, title: str, fp: str=f'{os.environ["PYT
     plt.close()
         
 if __name__ == '__main__':
-    
+
     # Trading Decisions 
     trader = BasicTrader('Basic')
-    trades = trader.trade(symbol='SQ')    
+    trades = trader.trade(symbol='SQ')
 
+    model = DecisionTreeRegressor(max_depth=5)
+    dt_trader = SKTrader(model, 'DT', impact=0.0)
+    dt_trader.train('SQ', start_date=datetime(2020, 3, 1), end_date=datetime(2020, 5, 30))
+    dt_trades = dt_trader.trade('SQ', start_date=datetime(2020, 6, 1), end_date=datetime(2020, 12, 31))
+    
     hodler = HODLer('HODL')
     hodler_trades = hodler.trade(symbol='SQ')
 
@@ -119,6 +134,7 @@ if __name__ == '__main__':
     sim = MarketSim()
     portfolio_trader = sim.calculate_portfolio(trades)
     portfolio_hodler = sim.calculate_portfolio(hodler_trades)
+    portfolio_dt = sim.calculate_portfolio(dt_trades)
 
     # Evaluate
     print('Basic Trader')
@@ -129,13 +145,23 @@ if __name__ == '__main__':
     print('HODLer')
     print_portfolio_metrics(portfolio_hodler['USD_Total'])
 
+    print('..............................................')
+
+    print('DT')
+    print_portfolio_metrics(portfolio_dt['USD_Total'])
+
+    print('..............................................')
+
     portfolios = {
         'Trader': portfolio_trader['USD_Total'],
-        'HODLer': portfolio_hodler['USD_Total']
+        'HODLer': portfolio_hodler['USD_Total'],
+        'DT': portfolio_dt['USD_Total']
     }
 
     plot_portfolios(portfolios, title='compare')
 
-    plot_trades(portfolio_trader, trades, title='Trades')
+    plot_trades(portfolio_trader, trades, title='Basic Trades')
+    plot_trades(portfolio_dt, dt_trades, title='DT Trades')
+
 
 

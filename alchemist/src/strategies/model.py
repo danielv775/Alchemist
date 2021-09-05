@@ -14,11 +14,14 @@ from sklearn.ensemble import RandomForestRegressor
 from sklearn.tree import DecisionTreeRegressor
 from sklearn.metrics import r2_score, mean_absolute_error, mean_squared_error
 
+import numpy as np
+
 class SKTrader(Trader):
 
-    def __init__(self, model, name: str, impact: float=0.0):
+    def __init__(self, model, name: str, impact: float=0.0, window: int=7):
         super().__init__(name, impact)
         self.model = model
+        self.window = window
 
     def train(self, symbol: str, start_date: datetime=datetime(2019, 1, 1), end_date: datetime=datetime(2019, 12, 31), start_value: float=10000):
         """Train Model
@@ -35,23 +38,23 @@ class SKTrader(Trader):
         [symbol], start_date, end_date, return_dict=False, invalidate_cache=False)
 
         # Create instance of Price/SMA calculator
-        price_by_sma = PriceBySMA(name='Price_by_SMA_15d', window_size=15, price_column_name=ADJUSTED_CLOSE)
+        price_by_sma = PriceBySMA(name=f'Price_by_SMA_{self.window}d', window_size=self.window, price_column_name=ADJUSTED_CLOSE)
         daily_market_data = price_by_sma.calculate(daily_market_data, merge_with_market_data=True)
 
         # Create instance of BBP calculator
-        bbp = BBP(name='bbp_15d', window_size=15, price_column_name=ADJUSTED_CLOSE)
+        bbp = BBP(name=f'bbp_{self.window}d', window_size=self.window, price_column_name=ADJUSTED_CLOSE)
         data = bbp.calculate(daily_market_data, merge_with_market_data=True)[symbol]
 
-        data['ror_7d'] = data[ADJUSTED_CLOSE].pct_change(periods=7)
+        data['daily_ror'] = data[ADJUSTED_CLOSE].pct_change(periods=1)
 
-        data['ror_7d_future_true'] = data['ror_7d'].shift(-7)
+        data['daily_ror_future_true'] = data['daily_ror'].shift(-1)
 
         data = data.dropna()
 
-        self.model.fit(data[[ADJUSTED_CLOSE, 'Price_by_SMA_15d', 'bbp_15d']], data['ror_7d_future_true'])
+        self.model.fit(data[[ADJUSTED_CLOSE, f'Price_by_SMA_{self.window}d', f'bbp_{self.window}d']], data['daily_ror_future_true'])
 
-        pred_returns_train = self.model.predict(data[[ADJUSTED_CLOSE, 'Price_by_SMA_15d', 'bbp_15d']])
-        data['ror_7d_future_pred'] = pred_returns_train
+        pred_returns_train = self.model.predict(data[[ADJUSTED_CLOSE, f'Price_by_SMA_{self.window}d', f'bbp_{self.window}d']])
+        data['daily_ror_future_pred'] = pred_returns_train
 
     
     def trade(self, symbol: str, start_date: datetime=datetime(2020, 1, 1), end_date: datetime=datetime(2020, 12, 31), start_value: float=10000) -> DataFrame:
@@ -61,21 +64,21 @@ class SKTrader(Trader):
         [symbol], start_date, end_date, return_dict=False, invalidate_cache=False)
 
         # Create instance of Price/SMA calculator
-        price_by_sma = PriceBySMA(name='Price_by_SMA_15d', window_size=15, price_column_name=ADJUSTED_CLOSE)
+        price_by_sma = PriceBySMA(name=f'Price_by_SMA_{self.window}d', window_size=self.window, price_column_name=ADJUSTED_CLOSE)
         daily_market_data = price_by_sma.calculate(daily_market_data, merge_with_market_data=True)
 
         # Create instance of BBP calculator
-        bbp = BBP(name='bbp_15d', window_size=15, price_column_name=ADJUSTED_CLOSE)
+        bbp = BBP(name=f'bbp_{self.window}d', window_size=self.window, price_column_name=ADJUSTED_CLOSE)
         data = bbp.calculate(daily_market_data, merge_with_market_data=True)[symbol]
 
-        data['ror_7d'] = data[ADJUSTED_CLOSE].pct_change(periods=7)
-        data['ror_7d_future_true'] = data['ror_7d'].shift(-7)
+        data['daily_ror'] = data[ADJUSTED_CLOSE].pct_change(periods=1)
+        data['daily_ror_future_true'] = data['daily_ror'].shift(-1)
 
         data = data.dropna()
 
-        pred_returns = self.model.predict(data[[ADJUSTED_CLOSE, 'Price_by_SMA_15d', 'bbp_15d']])
+        pred_returns = self.model.predict(data[[ADJUSTED_CLOSE, f'Price_by_SMA_{self.window}d', f'bbp_{self.window}d']])
 
-        data['ror_7d_future_pred'] = pred_returns
+        data['daily_ror_future_pred'] = pred_returns
 
         trades = pd.DataFrame(0, index=data.index, columns=[symbol, 'USD'])
 
@@ -86,13 +89,14 @@ class SKTrader(Trader):
         current_units = 0
         
         for td in trading_days:
-
+            
+            pred_ror = data.loc[td, 'daily_ror_future_pred']
             price = data.loc[td, ADJUSTED_CLOSE]
 
             if position_status == 'close':
 
                 # BUY
-                if (data.loc[td, 'Price_by_SMA_15d'] < 0.95) | (data.loc[td, 'bbp_15d'] < 0.2):
+                if pred_ror > 0.0:
                     units = current_usd/price
                     order_value = price * units
 
@@ -108,7 +112,7 @@ class SKTrader(Trader):
             elif position_status == 'open':
                 
                 # SELL
-                if (data.loc[td, 'Price_by_SMA_15d'] > 1.1) | (data.loc[td, 'bbp_15d'] >= 1.1):
+                if pred_ror < 0.0:
                     order_value = price * current_units
 
                     trades.loc[td, symbol] = -1*current_units
@@ -125,9 +129,9 @@ class SKTrader(Trader):
 
 if __name__ == '__main__':
     
-    model = DecisionTreeRegressor(max_depth=15)
+    model = DecisionTreeRegressor(max_depth=10)
+    
     dt_trader = SKTrader(model, 'DT', impact=0.0)
-    dt_trader.train('SQ')
-    dt_trader.trade('SQ')
 
-    sdf
+    dt_trader.train('SQ', start_date=datetime(2020, 4, 1), end_date=datetime(2020, 6, 30))
+    trades = dt_trader.trade('SQ', start_date=datetime(2020, 7, 1), end_date=datetime(2020, 12, 31))
