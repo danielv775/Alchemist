@@ -7,7 +7,18 @@ from pandas import DataFrame
 from pandas._testing import assert_series_equal
 
 from alchemist.src.consts import *
-from alchemist.src.etl.technical_indicators import TechnicalIndicator, SMA, PriceBySMA, BBP, ROC, MACD
+from alchemist.src.etl.technical_indicators import (
+    TechnicalIndicator,
+    SMA,
+    PriceBySMA,
+    BBP,
+    ROC,
+    MACD,
+    EMA,
+    FastStochasticOscillator,
+    SlowStochasticOscillator,
+    ChaikinMoneyFlow,
+)
 
 
 def check_series_values_equal(left_series, right_series):
@@ -51,9 +62,12 @@ class TestTechnicalIndicator(unittest.TestCase):
 
             def __init__(self, name:str, price_column_name:str):
 
+                self.name = name
+
                 self.price_column_name = price_column_name                
                 
-                super().__init__(name)                       
+                super().__init__() 
+
             
             def _calculate(self, single_symbol_data:DataFrame):
 
@@ -62,6 +76,8 @@ class TestTechnicalIndicator(unittest.TestCase):
                 # Only sum 1 to column AdjClose                
                 # prices.loc[:, 'AdjClose'] += 1
                 prices = prices + 1
+
+                prices.rename(columns = {self.price_column_name: self.name}, inplace=True)
 
                 return prices
 
@@ -244,7 +260,126 @@ class TestMACD(unittest.TestCase):
 
       
         with self.assertRaises(ValueError):
-            macd.calculate(self.market_data_with_nulls)          
+            macd.calculate(self.market_data_with_nulls)
+
+class TestEMA(unittest.TestCase):
+
+    def setUp(self):        
+        
+        self.market_data = load_test_data(f"{os.environ['PYTHONPATH']}/alchemist/src/etl/tests/ema_test_data.xlsx")        
+
+        # Creating a dataframe with null values
+        self.market_data_with_nulls = self.market_data.copy()
+        self.market_data_with_nulls.loc['2019-01-03', 'AdjClose'] = None
+
+    
+    def tearDown(self):
+        pass    
+
+    
+    def test_calculate(self):                
+
+        # Testing if values are calculated correctly        
+        ema = EMA(name= '12_day_ema', window_size=12)
+        calculated_ema = ema.calculate(self.market_data)
+        
+        # Due to a calculation difference in Pandas and Excel, the first 200 lines doesn't match well. Checking the remaining lines only.
+        self.assertTrue(check_series_values_equal(calculated_ema['12_day_ema'].iloc[200:], self.market_data['True_12_day_EMA'].iloc[200:]))
+      
+        with self.assertRaises(ValueError):
+            ema.calculate(self.market_data_with_nulls)              
+
+
+class TestFastStochasticOscillator(unittest.TestCase):
+
+    def setUp(self):        
+        
+        self.market_data = load_test_data(f"{os.environ['PYTHONPATH']}/alchemist/src/etl/tests/stochastic_oscillators_test_data.xlsx")        
+
+        # Creating a dataframe with null values
+        self.market_data_with_nulls = self.market_data.copy()        
+        self.market_data_with_nulls.loc['2019-01-03', 'Close'] = None
+
+    
+    def tearDown(self):
+        pass    
+
+    
+    def test_calculate(self):                
+
+        # Testing if values are calculated correctly        
+        fso = FastStochasticOscillator()
+
+        calculated_fso = fso.calculate(self.market_data)
+        
+        # Due to a calculation difference in Pandas and Excel, the first 200 lines doesn't match well. Checking the remaining lines only.
+        self.assertTrue(check_series_values_equal(calculated_fso['fast_k'], self.market_data['True_k_fast']))
+        self.assertTrue(check_series_values_equal(calculated_fso['fast_d'], self.market_data['True_d_fast']))
+
+      
+        with self.assertRaises(ValueError):
+            fso.calculate(self.market_data_with_nulls)
+
+class TestSlowStochasticOscillator(unittest.TestCase):
+
+    def setUp(self):        
+        
+        self.market_data = load_test_data(f"{os.environ['PYTHONPATH']}/alchemist/src/etl/tests/stochastic_oscillators_test_data.xlsx")        
+
+        # Creating a dataframe with null values
+        self.market_data_with_nulls = self.market_data.copy()        
+        self.market_data_with_nulls.loc['2019-01-03', 'High'] = None
+
+    
+    def tearDown(self):
+        pass    
+
+    
+    def test_calculate(self):                
+
+        # Testing if values are calculated correctly        
+        sso = SlowStochasticOscillator()
+
+        calculated_sso = sso.calculate(self.market_data)
+        
+        # Due to a calculation difference in Pandas and Excel, the first 200 lines doesn't match well. Checking the remaining lines only.
+        self.assertTrue(check_series_values_equal(calculated_sso['slow_k'], self.market_data['True_k_slow']))
+        self.assertTrue(check_series_values_equal(calculated_sso['slow_d'], self.market_data['True_d_slow']))
+
+      
+        with self.assertRaises(ValueError):
+            sso.calculate(self.market_data_with_nulls)  
+
+
+class TestChaikinMoneyFlow(unittest.TestCase):
+
+    def setUp(self):        
+        
+        self.market_data = load_test_data(f"{os.environ['PYTHONPATH']}/alchemist/src/etl/tests/chaikin_money_flow_test_data.xlsx")        
+
+        # Creating a dataframe with null values
+        self.market_data_with_nulls = self.market_data.copy()        
+        self.market_data_with_nulls.loc['2019-01-03', 'Volume'] = None
+
+    
+    def tearDown(self):
+        pass    
+
+    
+    def test_calculate(self):                
+
+        # Testing if values are calculated correctly        
+        cmf = ChaikinMoneyFlow(name='21_day_cmf')
+
+        calculated_cmf = cmf.calculate(self.market_data)
+        
+        # Due to a calculation difference in Pandas and Excel, the first 200 lines doesn't match well. Checking the remaining lines only.
+        self.assertTrue(check_series_values_equal(calculated_cmf['21_day_cmf'], self.market_data['True_CMF']))        
+
+      
+        with self.assertRaises(ValueError):
+            cmf.calculate(self.market_data_with_nulls) 
+
 
 if  __name__ == '__main__':
     
