@@ -24,7 +24,7 @@ def load_market_data(
     intraday: bool = False,
     interval: str = '60min',
     invalidate_cache: bool = True,
-    cache_folder=f"{os.environ['PYTHONPATH']}alchemist/data",
+    cache_folder=f"{os.environ['PYTHONPATH']}/alchemist/data",
     return_dict:bool=True
 ):
     """ Load market data
@@ -51,7 +51,7 @@ def load_market_data(
     if not invalidate_cache:
         
         try:
-            market_data_dict = read_cached_market_data(symbols, cache_folder, intraday)            
+            market_data_dict = read_cached_market_data(symbols, cache_folder, intraday, start_date, end_date)            
         
         except FileNotFoundError:
             invalidate_cache = True
@@ -101,7 +101,7 @@ def load_market_data(
         return market_data_df
 
 
-def read_cached_market_data(symbols:list, cache_folder:str, intraday:bool) -> dict:    
+def read_cached_market_data(symbols:list, cache_folder:str, intraday:bool, start_date: datetime, end_date: datetime) -> dict:    
 
     market_data = {}
 
@@ -130,6 +130,8 @@ def read_cached_market_data(symbols:list, cache_folder:str, intraday:bool) -> di
             # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
             data = data.rename_axis(DATE).rename_axis(FEATURES, axis='columns')
 
+            data = data.loc[start_date:end_date]
+
             market_data[symbol] = data
 
         except FileNotFoundError as e:
@@ -142,7 +144,7 @@ def read_cached_market_data(symbols:list, cache_folder:str, intraday:bool) -> di
 
 def download_daily_market_data(symbols: list, start_date: datetime, end_date: datetime,
                                data_source='yahoo',
-                               cache_folder=f"{os.environ['PYTHONPATH']}alchemist/data",
+                               cache_folder=f"{os.environ['PYTHONPATH']}/alchemist/data",
                                ) -> dict:
     """Download daily market data
 
@@ -208,7 +210,7 @@ def download_daily_market_data(symbols: list, start_date: datetime, end_date: da
 def download_intraday_market_data(symbols: list,
                                   months: int,
                                   interval='60min',
-                                  cache_folder=f"{os.environ['PYTHONPATH']}alchemist/data",
+                                  cache_folder=f"{os.environ['PYTHONPATH']}/alchemist/data",
                                   ) -> dict:
     """Dowload intraday market data
 
