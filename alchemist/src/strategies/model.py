@@ -18,6 +18,8 @@ import numpy as np
 
 import matplotlib.pyplot as plt
 
+from sklearn.preprocessing import MinMaxScaler
+
 class SKTrader(Trader):
 
     def __init__(self, model, 
@@ -56,6 +58,8 @@ class SKTrader(Trader):
         ]
         self.target = 'daily_ror_future'
 
+        self.cols = [ *self.features , *[self.target] ]
+
         # Populate after training and trading period
         self.train_data = None
         self.test_data = None
@@ -74,11 +78,30 @@ class SKTrader(Trader):
         """
         train_data = self.data.loc[start_date:end_date].dropna()
 
-        self.model.fit(train_data[self.features], train_data[self.target])
+        scaler_X = MinMaxScaler().fit(train_data[self.features])
+        scaler_y = MinMaxScaler().fit(train_data[self.target].values.reshape(-1, 1))
 
-        pred_returns = self.model.predict(train_data[self.features])
-        train_data[f'{self.target}_pred'] = pred_returns
+        train_data_norm = np.hstack((
+            scaler_X.transform(train_data[self.features]),
+            scaler_y.transform(train_data[self.target].values.reshape(-1, 1))
+        ))
+        train_data_norm = pd.DataFrame(train_data_norm, index=train_data.index, columns=self.cols)
+        
+        self.model.fit(train_data_norm[self.features], 
+                       train_data_norm[self.target])
+
+        pred_returns_norm = self.model.predict(train_data_norm[self.features])
+        
+        train_data_norm[f'{self.target}_pred'] = pred_returns_norm
+
+        train_data[f'{self.target}_pred'] = scaler_y.inverse_transform(pred_returns_norm.reshape(-1, 1))
+
+        train_data = train_data.merge(train_data_norm, left_index=True, right_index=True, suffixes=('', '_norm'))
+
         self.train_data = train_data
+        
+        self.scaler_X = scaler_X
+        self.scaler_y = scaler_y
 
     def trade(self, 
             start_date: datetime=datetime(2020, 1, 1), 
@@ -87,8 +110,8 @@ class SKTrader(Trader):
         
         test_data = self.data.loc[start_date:end_date].dropna()
 
-        pred_returns = self.model.predict(test_data[self.features])
-        test_data[f'{self.target}_pred'] = pred_returns
+        pred_returns = self.model.predict(self.scaler_X.transform(test_data[self.features]))
+        test_data[f'{self.target}_pred'] = self.scaler_y.inverse_transform(pred_returns.reshape(-1, 1))
         
         self.test_data = test_data
 
@@ -176,7 +199,7 @@ class SKTrader(Trader):
 if __name__ == '__main__':
     
     # model = DecisionTreeRegressor(max_depth=5)
-    model = RandomForestRegressor(max_depth=10, n_estimators=200)
+    model = RandomForestRegressor(max_depth=5, n_estimators=100)
     dt_trader = SKTrader(model, 'DT', 'SQ', window=14)
     dt_trader.train(start_date=datetime(2019, 4, 1), end_date=datetime(2019, 5, 30))
     trades = dt_trader.trade(start_date=datetime(2019, 6, 1), end_date=datetime(2019, 7, 31))

@@ -123,10 +123,10 @@ if __name__ == '__main__':
     trades = trader.trade(symbol='SQ')
 
     model = DecisionTreeRegressor(max_depth=5)
-    dt_trader = SKTrader(model, 'DT', impact=0.0)
-    dt_trader.train('SQ', start_date=datetime(2020, 3, 1), end_date=datetime(2020, 5, 30))
-    dt_trades = dt_trader.trade('SQ', start_date=datetime(2020, 6, 1), end_date=datetime(2020, 12, 31))
-    
+    dt_trader = SKTrader(model, 'DT', 'SQ')
+    dt_trader.train(start_date=datetime(2020, 3, 1), end_date=datetime(2020, 5, 31))
+    dt_trades = dt_trader.trade(start_date=datetime(2020, 6, 1), end_date=datetime(2020, 12, 31))
+
     hodler = HODLer('HODL')
     hodler_trades = hodler.trade(symbol='SQ')
 
