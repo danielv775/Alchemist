@@ -9,14 +9,12 @@ from alchemist.src.consts import *
 
 class TechnicalIndicator(ABC):
 
-    def __init__(self, name:str):
+    def __init__(self):
         """Init for Abstract Technical Indicator 
-
-        Args:
-            name (str): Indicator name (name that will appear in the result DataFrame column)
         """
         
-        self.name = name
+        # self.name = name
+        pass
         
     
     def calculate(self, market_data:DataFrame, merge_with_market_data:bool=False) -> DataFrame:
@@ -58,16 +56,13 @@ class TechnicalIndicator(ABC):
 
             result_dict = {}
 
-            symbols = {symbol for symbol, _ in market_data.axes[1].values}            
-
-            # Validate if the indicator was not already calculated
-            if self.name in {feature for _, feature in market_data.axes[1].values}:
-                raise ValueError(f'{self.name} is already in market data. Check if you are calculating the indicator twice!')
+            symbols = {symbol for symbol, _ in market_data.axes[1].values}
             
             # Iterate the axes[1] to calculate the indicator for each stock symbol 
             for symbol in symbols:
 
-                df = self._calculate_and_rename_column(market_data[symbol])               
+                # df = self._calculate_and_rename_column(market_data[symbol])
+                df = self._calculate(market_data[symbol].copy())
 
                 result_dict[symbol]= df
 
@@ -76,33 +71,25 @@ class TechnicalIndicator(ABC):
 
             result_df = result_df.rename_axis(DATE).rename_axis([SYMBOLS, FEATURES], axis='columns')            
 
-        else:
+        else:                      
 
-            # Validate if the indicator was not already calculated
-            if self.name in market_data.columns.values:
-                raise ValueError(f'{self.name} is already in market data. Check if you are calculating the indicator twice')                        
+            # result_df = self._calculate_and_rename_column(market_data)
+            result_df = self._calculate(market_data.copy())
 
-            result_df = self._calculate_and_rename_column(market_data)  
+
+        # Validate if the result columns already exist in original market data
+        if result_df is not None and any([col_name in list(market_data) for col_name in list(result_df)]):
+            raise ValueError(f'{self.name} is already in market data. Check if you are calculating the indicator twice')           
 
 
         if merge_with_market_data:
             result_df = market_data.merge(result_df, left_index=True, right_index=True)
 
-        return result_df
-    
-
-    def _calculate_and_rename_column(self, market_data:DataFrame):
-        
-        df = self._calculate(market_data)
-
-        # Renaming the first column (the only one) to the indicator name
-        df.rename(columns = {list(df)[0]: self.name}, inplace=True)
-
-        return df      
+        return result_df   
 
 
     @abstractmethod
-    def _calculate(self, single_symbol_data:DataFrame):
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:
         """Implements the specified technical indicator calculation.
         This function must be implemented in the children classes.
 
@@ -116,24 +103,30 @@ class TechnicalIndicator(ABC):
             2019-01-04  253.110001  247.169998  247.589996  252.389999  142628800.0  241.574493            
             (...)
 
+
+        Returns:
+            DataFrame: A dataframe whose first column will be renamed automatically by self.name
+                The implementation of most of indicators should return only one column, unless the indicator
+                has auxiliary curves like MACD or Bollinger Bands (the auxiliary curves should be 2nd column and after).
         """
 
-        # Implement this method in the child class
-        pass
+        # Implement this method in the child class        
 
 
 class SMA(TechnicalIndicator):
 
     def __init__(self, name:str, window_size:int, price_column_name:str=ADJUSTED_CLOSE):
 
+        self.name = name
+
         self.price_column_name = price_column_name
 
         self.window_size = window_size
         
-        super().__init__(name)
+        super().__init__()
 
     
-    def _calculate(self, single_symbol_data:DataFrame):        
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:        
 
         # Slice the dataframe with a list single_symbol_data[[self.price_column_name]] to return a DataFrame
         # instead of string like single_symbol_data[self.price_column_name] which returns a Series        
@@ -145,6 +138,8 @@ class SMA(TechnicalIndicator):
 
         result = prices.rolling(self.window_size).mean()
 
+        result.rename(columns = {self.price_column_name: self.name}, inplace=True)
+
         return result
 
 
@@ -152,14 +147,16 @@ class PriceBySMA(TechnicalIndicator):
 
     def __init__(self, name:str, window_size:int, price_column_name:str=ADJUSTED_CLOSE):
 
+        self.name = name
+
         self.price_column_name = price_column_name
 
         self.window_size = window_size
         
-        super().__init__(name)
+        super().__init__()
 
     
-    def _calculate(self, single_symbol_data:DataFrame):        
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:        
 
         # Slice the dataframe with a list market_data[[self.price_column_name]] to return a DataFrame
         # instead of string like market_data[self.price_column_name] which returns a Series        
@@ -173,23 +170,32 @@ class PriceBySMA(TechnicalIndicator):
 
         result = prices / sma
 
+        result.rename(columns = {self.price_column_name: self.name}, inplace=True)
+
         return result
 
 
 class BBP(TechnicalIndicator):
+    # https://school.stockcharts.com/doku.php?id=technical_indicators:bollinger_band_perce
 
     def __init__(self, name:str, window_size:int, price_column_name:str=ADJUSTED_CLOSE):
+
+        self.name = name
 
         self.price_column_name = price_column_name
 
         self.window_size = window_size
         
-        super().__init__(name)
+        super().__init__()
 
     
-    def _calculate(self, single_symbol_data:DataFrame):  
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:  
 
         prices = single_symbol_data[[self.price_column_name]]
+
+        # Check if there is any missing values
+        if prices.isnull().values.any():
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')        
 
         sma = prices.rolling(self.window_size).mean()
 
@@ -201,10 +207,269 @@ class BBP(TechnicalIndicator):
 
         result = (prices - lower_band) / (upper_band - lower_band)
 
+        result.rename(columns = {self.price_column_name: self.name}, inplace=True)
+
         return result        
 
 
-# TODO Create more indicators like SMA and PriceBySMA (just create a class with __init__ and _caluclate functions)
+class ROC(TechnicalIndicator):
+    # https://www.investopedia.com/terms/p/pricerateofchange.asp
+
+    def __init__(self, name:str, window_size:int, price_column_name:str=ADJUSTED_CLOSE):
+
+        self.name = name
+
+        self.price_column_name = price_column_name
+
+        self.window_size = window_size
+        
+        super().__init__()
+
+    
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:  
+
+        prices = single_symbol_data[[self.price_column_name]]
+
+        # Check if there is any missing values
+        if prices.isnull().values.any():
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')        
+        
+        result = prices.pct_change(self.window_size, fill_method='ffill')
+
+        result.rename(columns = {self.price_column_name: self.name}, inplace=True)
+
+        return result  
+
+
+class MACD(TechnicalIndicator):
+    # https://school.stockcharts.com/doku.php?id=technical_indicators:moving_average_convergence_divergence_macd
+    # https://investexcel.net/how-to-calculate-macd-in-excel/
+    # https://www.learnpythonwithrune.org/calucate-macd-with-pandas-dataframes/
+
+    def __init__(
+        self, 
+        name:str, 
+        signal_name:str, 
+        short_window:int=12, 
+        long_window:int=26, 
+        signal_window:int=9, 
+        price_column_name:str=ADJUSTED_CLOSE
+        ):
+        self.name = name
+        self.signal_name = signal_name
+        self.short_window = short_window
+        self.long_window = long_window
+        self.signal_window = signal_window
+        self.price_column_name = price_column_name
+        
+        super().__init__()
+
+    
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:  
+
+        prices = single_symbol_data[[self.price_column_name]]
+
+        # Check if there is any missing values
+        if prices.isnull().values.any():
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')
+        
+        
+        short_ema = prices.ewm(span=self.short_window, adjust=False).mean()
+
+        long_ema = prices.ewm(span=self.long_window, adjust=False).mean()        
+
+        # MACD
+        result = short_ema - long_ema
+        result.rename(columns = {self.price_column_name: self.name}, inplace=True)
+
+        # Adding the signal line to the dataframe
+        signal_ema = result.ewm(span=self.signal_window, adjust=False).mean()
+        result[self.signal_name] = signal_ema
+
+        return result
+
+
+class EMA(TechnicalIndicator):
+
+    def __init__(self, name:str, window_size:int, price_column_name:str=ADJUSTED_CLOSE):
+
+        self.name = name
+
+        self.price_column_name = price_column_name
+
+        self.window_size = window_size
+        
+        super().__init__()
+
+    
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:        
+
+        # Slice the dataframe with a list single_symbol_data[[self.price_column_name]] to return a DataFrame
+        # instead of string like single_symbol_data[self.price_column_name] which returns a Series        
+        prices = single_symbol_data[[self.price_column_name]]
+
+        # Check if there is any missing values
+        if prices.isnull().values.any():
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')
+
+        result = prices.ewm(span=self.window_size, adjust=False).mean()
+
+        result.rename(columns = {self.price_column_name: self.name}, inplace=True)
+
+        return result
+        
+
+class FastStochasticOscillator(TechnicalIndicator):
+    # https://medium.com/codex/algorithmic-trading-with-stochastic-oscillator-in-python-7e2bec49b60d
+
+    def __init__(
+        self,
+        fast_k_name: str = 'fast_k',
+        fast_d_name: str = 'fast_d',
+        k_window: int = 14,
+        d_window: int = 3,
+        low_column: str = LOW,
+        high_column: str = HIGH,
+        close_column: str = CLOSE
+    ):
+        self.fast_k_name = fast_k_name
+        self.fast_d_name = fast_d_name
+        self.k_window = k_window
+        self.d_window = d_window
+        self.low_column = low_column
+        self.high_column = high_column
+        self.close_column = close_column
+
+        super().__init__()
+
+
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:
+
+        # Check if there is any missing values
+        if single_symbol_data[self.low_column].isnull().values.any() or \
+                single_symbol_data[self.high_column].isnull().values.any() or \
+                single_symbol_data[self.close_column].isnull().values.any():
+
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')
+
+        low_min  = single_symbol_data[self.low_column].rolling(window = self.k_window).min()
+        
+        high_max = single_symbol_data[self.high_column].rolling(window = self.k_window).max()
+
+
+        # Fast Stochastic
+        fast_k = 100 * (single_symbol_data[self.close_column] - low_min)/(high_max - low_min)
+        fast_d = fast_k.rolling(window=self.d_window).mean()
+
+        result = pd.concat([fast_k, fast_d], axis=1)
+        result.rename(columns = {0: self.fast_k_name, 1: self.fast_d_name}, inplace=True)
+
+        return result
+
+
+
+class SlowStochasticOscillator(TechnicalIndicator):
+    # https://stackoverflow.com/questions/30261541/slow-stochastic-implementation-in-python-pandas
+
+    def __init__(
+        self,
+        slow_k_name: str = 'slow_k',
+        slow_d_name: str = 'slow_d',
+        k_window: int = 14,
+        d_window: int = 3,
+        low_column: str = LOW,
+        high_column: str = HIGH,
+        close_column: str = CLOSE
+    ):
+
+        self.slow_k_name = slow_k_name
+        self.slow_d_name = slow_d_name
+        self.k_window = k_window
+        self.d_window = d_window
+        self.low_column = low_column
+        self.high_column = high_column
+        self.close_column = close_column
+
+        super().__init__()
+
+
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:
+
+        # Check if there is any missing values
+        if single_symbol_data[self.low_column].isnull().values.any() or \
+                single_symbol_data[self.high_column].isnull().values.any() or \
+                single_symbol_data[self.close_column].isnull().values.any():
+
+            raise ValueError('Market Data contains null values. Missing preprocessing interpolation.')        
+
+        low_min  = single_symbol_data[self.low_column].rolling(window = self.k_window).min()
+        
+        high_max = single_symbol_data[self.high_column].rolling(window = self.k_window).max()
+
+
+        # Fast Stochastic
+        fast_k = 100 * (single_symbol_data[self.close_column] - low_min)/(high_max - low_min)
+        fast_d = fast_k.rolling(window=self.d_window).mean()
+
+        # Slow Stochastic
+        slow_k = fast_d
+        slow_d = slow_k.rolling(window=self.d_window).mean()        
+
+        result = pd.concat([slow_k, slow_d], axis=1)
+        result.rename(columns = {0: self.slow_k_name, 1: self.slow_d_name}, inplace=True)
+
+        return result
+
+
+class ChaikinMoneyFlow(TechnicalIndicator):
+    # https://www.tradingview.com/support/solutions/43000501974-chaikin-money-flow-cmf/
+    # https://www.fidelity.com/learning-center/trading-investing/technical-analysis/technical-indicator-guide/cmf
+
+    def __init__(
+        self,
+        name: str,
+        window: int = 21,
+        volume_column: str = VOLUME,
+        low_column: str = LOW,
+        high_column: str = HIGH,
+        close_column: str = CLOSE
+    ):
+
+        self.name = name
+        self.window = window
+        self.volume_column = volume_column
+        self.low_column = low_column
+        self.high_column = high_column
+        self.close_column = close_column
+
+        super().__init__()
+
+
+    def _calculate(self, single_symbol_data:DataFrame) -> DataFrame:
+        
+        # Check if there is any missing values
+        if single_symbol_data[self.volume_column].isnull().values.any() or \
+            single_symbol_data[self.low_column].isnull().values.any() or \
+                single_symbol_data[self.high_column].isnull().values.any() or \
+                single_symbol_data[self.close_column].isnull().values.any():
+
+            raise ValueError(
+                'Market Data contains null values. Missing preprocessing interpolation.')
+
+        close = single_symbol_data[self.close_column]
+        low = single_symbol_data[self.low_column]
+        high = single_symbol_data[self.high_column]
+        volume = single_symbol_data[self.volume_column]
+
+        money_flow_multiplier = ((close - low) - (high - close)) / (high - low)
+
+        money_flow = money_flow_multiplier * volume
+
+        cmf = money_flow.rolling(window=self.window).sum() / volume.rolling(window=self.window).sum()
+
+        result = pd.DataFrame({self.name: cmf})
+
+        return result
 
 
 # Example of Technical Indicators usage
@@ -232,8 +497,14 @@ if __name__ == '__main__':
     print(only_sma)
 
     # SMA calculator will calculate SMAs for TSLA and AAPL and will merge with input market data (merge_with_market_data=True)
-    sma_and_market_data = sma.calculate(daily_market_data, merge_with_market_data=True)
+    sma_and_market_data = sma.calculate(daily_market_data, merge_with_market_data=True)    
     print(sma_and_market_data)
+
+    fso = FastStochasticOscillator('fast_k', 'fast_d')
+    fso_indicator = fso.calculate(daily_market_data, merge_with_market_data=True)
+
+    sso = SlowStochasticOscillator()
+    sso_indicator = sso.calculate(daily_market_data, merge_with_market_data=True)
 
 
     # Create instance of Price/SMA calculator

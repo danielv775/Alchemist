@@ -161,6 +161,7 @@ class SKTrader(Trader):
         
         return trades
     
+
     def evaluate_model(self, metrics=[r2_score, mean_absolute_error, mean_squared_error], plot=False):
         
         datasets = {
@@ -195,6 +196,7 @@ class SKTrader(Trader):
             plt.close()
 
         return results                
+
 
 if __name__ == '__main__':
     

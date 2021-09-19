@@ -20,7 +20,7 @@ class HODLer(Trader):
         # Loading daily market data
         data = load_market_data([symbol], start_date, end_date, return_dict=False, invalidate_cache=False)[symbol]
 
-        trades = pd.DataFrame(0, index=data.index, columns=[symbol, 'USD'])
+        trades = pd.DataFrame(0.0, index=data.index, columns=[symbol, 'USD'])
 
         start_date = trades.index[0]
 
@@ -52,7 +52,7 @@ class BasicTrader(Trader):
         bbp = BBP(name='bbp_15d', window_size=15, price_column_name=ADJUSTED_CLOSE)
         data = bbp.calculate(daily_market_data, merge_with_market_data=True)[symbol]
 
-        trades = pd.DataFrame(0, index=data.index, columns=[symbol, 'USD'])
+        trades = pd.DataFrame(0.0, index=data.index, columns=[symbol, 'USD'])
 
         trading_days = trades.index
         position_status = 'close'
