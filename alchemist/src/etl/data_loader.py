@@ -128,7 +128,7 @@ def read_cached_market_data(symbols:list, cache_folder:str, intraday:bool, start
             # Date                                                                              
             # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
             # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
-            data = data.rename_axis(DATE).rename_axis(FEATURES, axis='columns')
+            # data = data.rename_axis(DATE).rename_axis(FEATURES, axis='columns')
 
             data = data.loc[start_date:end_date]
 
@@ -198,7 +198,7 @@ def download_daily_market_data(symbols: list, start_date: datetime, end_date: da
         # Date                                                                              
         # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
         # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
-        df = df.rename_axis(DATE).rename_axis(FEATURES, axis='columns')
+        # df = df.rename_axis(DATE).rename_axis(FEATURES, axis='columns')
 
         market_data[symbol] = df
 
@@ -252,7 +252,7 @@ def download_intraday_market_data(symbols: list,
         # Date                                                                              
         # 2019-01-02   63.026001   59.759998   61.220001   62.023998  58293000.0   62.023998
         # 2019-01-03   61.880001   59.476002   61.400002   60.071999  34826000.0   60.071999
-        data = data.rename_axis(DATE).rename_axis(FEATURES, axis='columns')            
+        # data = data.rename_axis(DATE).rename_axis(FEATURES, axis='columns')            
 
         market_data[symbol] = data
 

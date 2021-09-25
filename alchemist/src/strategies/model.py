@@ -38,7 +38,7 @@ class SKTrader(Trader):
 
         # Loading daily market data
         data = load_market_data(
-        [symbol], start_date, end_date, return_dict=False, invalidate_cache=False)
+        [symbol], start_date, end_date, return_dict=False, invalidate_cache=True)
 
         # Create instance of Price/SMA calculator
         price_by_sma = PriceBySMA(name=f'Price_by_SMA_{self.window}d', window_size=self.window, price_column_name=ADJUSTED_CLOSE)

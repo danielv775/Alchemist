@@ -2,6 +2,8 @@
 
 import pandas as pd
 
+from copy import deepcopy
+
 from alchemist.src.strategies.basic import BasicTrader, HODLer
 from pandas.core.frame import DataFrame
 
@@ -50,6 +52,8 @@ class MarketSim():
               
         return portfolio
 
+
+    
 
 if __name__ == '__main__':
     
