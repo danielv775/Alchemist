@@ -26,6 +26,8 @@ from alchemist.src.consts import *
 from alchemist.src.sim.marketsim import MarketSim
 from alchemist.src.sim import evaluate
 
+from alchemist.src.helpers.config_mgmt_utils import ResultsLogger
+
 
 class ModelLayer(ABC):
 
@@ -41,36 +43,61 @@ class ModelLayer(ABC):
         pass
 
     @abstractmethod
-    def evaluate_model(self, X: DataFrame, y: DataFrame, logger) -> DataFrame:
+    def evaluate_model(self, X: DataFrame, y: DataFrame, results_logger: ResultsLogger) -> DataFrame:
         pass
 
 
-class EvaluateSkClassifierMixin:
+class EvaluateClassifierMixin:
     
-    def evaluate_model(self, X: DataFrame, y: DataFrame, logger) -> DataFrame:
+    def evaluate_model(self, X: DataFrame, y: DataFrame, results_logger: ResultsLogger) -> DataFrame:
         
-        from sklearn.metrics import confusion_matrix, plot_confusion_matrix
+        from sklearn.metrics import confusion_matrix, plot_confusion_matrix, ConfusionMatrixDisplay
+
+        labels = [BUY, HOLD, SELL]
 
         y_hat = self.model.predict(X)        
 
-        cf_matrix = confusion_matrix(y, y_hat, labels=[BUY, HOLD, SELL])
-        logger.info('Confusion Matrix')
-        logger.info(cf_matrix)
-        logger.info('')
+        cf_matrix = confusion_matrix(y, y_hat, labels=labels)
+        results_logger.log('Confusion Matrix')
+        results_logger.log(cf_matrix)
+        results_logger.log('')
 
-        plt.ioff()
-        plot_confusion_matrix(self.model, X, y, labels=[BUY, HOLD, SELL])
+        disp = ConfusionMatrixDisplay(cf_matrix, display_labels=labels)
 
-        path = os.path.join(logger.name, 'confusion_matrix.png')
+        disp.plot(
+            include_values=True,
+            # cmap='viridis', 
+            cmap=plt.cm.Blues,
+            xticks_rotation='horizontal'
+        )
+
+        path = os.path.join(results_logger.current_subfolder, 'confusion_matrix.png')
+        plt.title('Confusion Matrix')
+        plt.savefig(path)        
+
+        cf_matrix_normed = confusion_matrix(y, y_hat, labels=labels, normalize='true')
+        results_logger.log('Normalized Confusion Matrix')
+        results_logger.log(cf_matrix_normed)
+        results_logger.log('')
+
+        # plt.ioff()
+        # plot_confusion_matrix(self.model, X, y, labels=[BUY, HOLD, SELL])
+
+        disp = ConfusionMatrixDisplay(cf_matrix_normed, display_labels=labels)
+
+        disp.plot(
+            include_values=True,
+            # cmap='viridis', 
+            cmap=plt.cm.Blues,
+            xticks_rotation='horizontal'
+        )
+
+        path = os.path.join(results_logger.current_subfolder, 'normed_confusion_matrix.png')
+        plt.title('Normalized Confusion Matrix')
         plt.savefig(path)
+        
 
-        print('Ahoi')
-
-
-
-
-
-class SkClassifierModelLayer(EvaluateSkClassifierMixin, ModelLayer):
+class SkClassifierModelLayer(EvaluateClassifierMixin, ModelLayer):
 
     def train(self, X: DataFrame, y: DataFrame):
         

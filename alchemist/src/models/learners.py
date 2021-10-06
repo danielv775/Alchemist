@@ -21,10 +21,17 @@ from alchemist.src.models.feature_processors import FeaturesProcessor
 from alchemist.src.models.target_processors import TargetProcessor
 from alchemist.src.models.model_layers import ModelLayer
 from alchemist.src.models.trade_strategies import TradeStrategy
+from alchemist.src.helpers.config_mgmt_utils import ResultsLogger
 
 class Learner(ABC):
 
-    def __init__(self, features_processor: FeaturesProcessor, target_processor: TargetProcessor, model_layer: ModelLayer, trade_strategy: TradeStrategy, logger):
+    def __init__(
+        self, features_processor: FeaturesProcessor, 
+        target_processor: TargetProcessor, 
+        model_layer: ModelLayer, 
+        trade_strategy: TradeStrategy, 
+        results_logger:ResultsLogger
+        ):
 
         self.features_processor = features_processor
 
@@ -34,7 +41,7 @@ class Learner(ABC):
 
         self.trade_strategy = trade_strategy
 
-        self.logger = logger
+        self.results_logger = results_logger
 
         self.trained = False
 
@@ -73,7 +80,7 @@ class Learner(ABC):
         
         X, y = self._get_training_data(market_data)
 
-        self.model_layer.evaluate_model(X, y, self.logger)
+        self.model_layer.evaluate_model(X, y, self.results_logger)
 
         # TODO call evaluate strategy method
 
@@ -90,11 +97,19 @@ class Learner(ABC):
 
 class ClassifierLearner(Learner):
 
-    def __init__(self, symbol, features_processor: FeaturesProcessor, target_processor: TargetProcessor, model_layer: ModelLayer, trade_strategy: TradeStrategy, logger):
+    def __init__(
+        self, 
+        symbol: str, 
+        features_processor: FeaturesProcessor, 
+        target_processor: TargetProcessor, 
+        model_layer: ModelLayer, 
+        trade_strategy: TradeStrategy, 
+        results_logger: ResultsLogger,
+        ):
 
         self.symbol = symbol
 
-        super().__init__(features_processor, target_processor, model_layer, trade_strategy, logger)
+        super().__init__(features_processor, target_processor, model_layer, trade_strategy, results_logger)
 
 
     def _calculate_trade_signals(self, market_data: DataFrame) -> DataFrame:

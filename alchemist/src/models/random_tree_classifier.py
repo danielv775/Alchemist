@@ -36,15 +36,12 @@ from alchemist.src.models.learners import Learner, ClassifierLearner
 
 from alchemist.src.strategies.basic import HODLer
 
-from alchemist.src.helpers import config_mgmt_utils as cm_utils
+from alchemist.src.helpers.config_mgmt_utils import ResultsLogger
 
 
 def main():
 
-    results_folder = f"{os.environ['PYTHONPATH']}alchemist/results"
-    run_folder = cm_utils.create_run_folder(results_folder=results_folder)
-
-    logger = cm_utils.get_run_logger(run_folder)
+    results_logger = ResultsLogger()
 
     train_start_date = datetime(2019, 1, 1)
     train_end_date = datetime(2019, 12, 31)
@@ -95,7 +92,7 @@ def main():
     # Creating trade strategy
     trade_strategy = ClassifierStrategy()
 
-    learner = ClassifierLearner('TSLA', features_processor, target_processor, model_layer, trade_strategy, logger)
+    learner = ClassifierLearner('TSLA', features_processor, target_processor, model_layer, trade_strategy, results_logger)
 
     train_market_data = market_data.loc[train_start_date:train_end_date, ('TSLA', slice(None))]
 
