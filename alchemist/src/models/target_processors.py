@@ -57,14 +57,14 @@ class ClassifierTargetProcessor(TargetProcessor):
         
         # Creating the targets dataframe        
         
-        columns_tuples = [(symbol, 'TARGET') for symbol, _ in ahead_returns.columns]
+        columns_tuples = [(symbol, TARGET) for symbol, _ in ahead_returns.columns]
         
-        columns_multiindex = pd.MultiIndex.from_tuples(columns_tuples, names=['Symbols', 'Features'])
+        columns_multiindex = pd.MultiIndex.from_tuples(columns_tuples, names=[SYMBOLS, FEATURES])
 
         targets = pd.DataFrame(0, index=ahead_returns.index, columns=columns_multiindex)        
         
         for symbol in ahead_returns.columns.levels[0]:
 
-            targets.loc[:, (symbol, 'TARGET')] = ahead_returns[symbol]['AHEAD_RETURN'].apply(_calculate_target)
+            targets.loc[:, (symbol, TARGET)] = ahead_returns[symbol]['AHEAD_RETURN'].apply(_calculate_target)
 
         return targets

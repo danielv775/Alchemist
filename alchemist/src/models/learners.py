@@ -2,6 +2,8 @@
 import pandas as pd
 from pandas.core.frame import DataFrame
 
+import numpy as np
+
 from abc import ABC, abstractmethod
 
 from typing import Tuple
@@ -85,13 +87,31 @@ class Learner(ABC):
         # TODO call evaluate strategy method
 
 
-    def calculate_trades(self, market_data: DataFrame, start_value: float):
+    def trade(self, market_data: DataFrame, current_portfolio: DataFrame) -> DataFrame:
 
         trade_signals = self._calculate_trade_signals(market_data)
 
-        trades = self.trade_strategy.trade(trade_signals, market_data, start_value)
+        trades = self.trade_strategy.calculate_trades(trade_signals, market_data, current_portfolio)
 
-        return trades
+        current_portfolio_columns = list(current_portfolio.columns)
+
+        trades_columns = list(trades.columns.unique(level=SYMBOLS))
+
+        # updated_portfolio_columns = {*current_portfolio, *trades_columns}  # This way doesn't keep the order
+        updated_portfolio_columns = list(dict.fromkeys([*current_portfolio_columns, *trades_columns]))
+
+        updated_portfolio = pd.DataFrame(0.0, index=trades.index, columns=updated_portfolio_columns)
+
+        # Populating column CASH with current portfolio CASH
+        for column in current_portfolio_columns:
+            updated_portfolio.loc[(current_portfolio[column] != np.NaN).index, column] = current_portfolio.loc[current_portfolio[column] != np.NaN, column]
+
+        for symbol in trades_columns:
+            updated_portfolio.loc[:, CASH] = updated_portfolio.loc[:, CASH] + trades.loc[:, (symbol, DELTA_CASH)]
+            updated_portfolio.loc[:, symbol] = updated_portfolio.loc[:, symbol] + trades.loc[:, (symbol, DELTA_HOLDING)]
+        
+
+        return trades, updated_portfolio
 
 
 
@@ -129,11 +149,11 @@ class ClassifierLearner(Learner):
         
         # Only needed for multi symbol learners
         # symbols = X.columns.unique(level=SYMBOLS)
-        # columns_tuples = [(symbol, 'SIGNAL') for symbol in symbols]
-        columns_tuples = [(self.symbol, 'SIGNAL')]
+        # columns_tuples = [(symbol, SIGNAL) for symbol in symbols]
+        columns_tuples = [(self.symbol, SIGNAL)]
         
-        columns_multiindex = pd.MultiIndex.from_tuples(columns_tuples, names=['Symbols', 'Features'])
+        columns_multiindex = pd.MultiIndex.from_tuples(columns_tuples, names=[SYMBOLS, FEATURES])
 
-        trade_signals = pd.DataFrame(signals, index=X.index, columns=columns_multiindex)
+        multiindex_signals = pd.DataFrame(signals, index=X.index, columns=columns_multiindex)
 
-        return trade_signals
+        return multiindex_signals
