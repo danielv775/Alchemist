@@ -1,3 +1,6 @@
+
+from enum import Enum
+
 ADJUSTED_CLOSE = 'AdjClose'
 CLOSE = 'Close'
 DATE = 'Date'
@@ -15,3 +18,11 @@ TARGET = 'Target'
 CASH = 'CASH'
 DELTA_CASH = 'DeltaCash'
 DELTA_HOLDING = 'DeltaHolding'
+PORT_VALUE = 'PortValue'
+
+
+class Phase(Enum):
+    TRAINING = 'Training Phase'
+    TEST = 'Test Phase'
+    VALIDATION = 'Validation Phase'
+    # LIVE = 'Live Phase'

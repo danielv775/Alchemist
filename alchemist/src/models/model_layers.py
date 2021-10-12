@@ -43,13 +43,13 @@ class ModelLayer(ABC):
         pass
 
     @abstractmethod
-    def evaluate_model(self, X: DataFrame, y: DataFrame, results_logger: ResultsLogger) -> DataFrame:
+    def evaluate_model(self, X: DataFrame, y: DataFrame, results_logger: ResultsLogger, phase: Phase) -> DataFrame:
         pass
 
 
 class EvaluateClassifierMixin:
     
-    def evaluate_model(self, X: DataFrame, y: DataFrame, results_logger: ResultsLogger) -> DataFrame:
+    def evaluate_model(self, X: DataFrame, y: DataFrame, results_logger: ResultsLogger, phase: Phase) -> DataFrame:
         
         from sklearn.metrics import confusion_matrix, plot_confusion_matrix, ConfusionMatrixDisplay
 
@@ -58,7 +58,7 @@ class EvaluateClassifierMixin:
         y_hat = self.model.predict(X)        
 
         cf_matrix = confusion_matrix(y, y_hat, labels=labels)
-        results_logger.log('Confusion Matrix')
+        results_logger.log(f'Confusion Matrix: {phase.value}')
         results_logger.log(cf_matrix)
         results_logger.log('')
 
@@ -71,12 +71,12 @@ class EvaluateClassifierMixin:
             xticks_rotation='horizontal'
         )
 
-        path = os.path.join(results_logger.current_subfolder, 'confusion_matrix.png')
-        plt.title('Confusion Matrix')
+        path = os.path.join(results_logger.current_subfolder, f'confusion_matrix_{phase.name}.png')
+        plt.title(f'Confusion Matrix: {phase.value}')
         plt.savefig(path)        
 
         cf_matrix_normed = confusion_matrix(y, y_hat, labels=labels, normalize='true')
-        results_logger.log('Normalized Confusion Matrix')
+        results_logger.log(f'Normalized Confusion Matrix: {phase.value}')
         results_logger.log(cf_matrix_normed)
         results_logger.log('')
 
@@ -92,8 +92,8 @@ class EvaluateClassifierMixin:
             xticks_rotation='horizontal'
         )
 
-        path = os.path.join(results_logger.current_subfolder, 'normed_confusion_matrix.png')
-        plt.title('Normalized Confusion Matrix')
+        path = os.path.join(results_logger.current_subfolder, f'normed_confusion_matrix_{phase.name}.png')
+        plt.title(f'Normalized Confusion Matrix: {phase.value}')
         plt.savefig(path)
         
 

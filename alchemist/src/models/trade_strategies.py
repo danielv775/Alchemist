@@ -8,8 +8,6 @@ from alchemist.src.consts import *
 
 class TradeStrategy(ABC):
 
-    # TODO replace start_value by portfolio at first date of trade_signals 
-    # (CASH column will work as start_value and Quantity already held of the stock may be used for selling)
     @abstractmethod
     def calculate_trades(self, trades_signals: pd.DataFrame, market_data: pd.DataFrame, current_portfolio: DataFrame) -> pd.DataFrame:
         pass

@@ -38,7 +38,7 @@ from alchemist.src.strategies.basic import HODLer
 
 from alchemist.src.helpers.config_mgmt_utils import ResultsLogger
 
-from alchemist.src.helpers.portfolio import create_initial_portfolio
+from alchemist.src.helpers.portfolio import create_initial_portfolio, get_closest_future_market_day
 
 
 def main():    
@@ -100,17 +100,15 @@ def main():
 
     learner.train_model(train_market_data)
     
-    learner.evaluate_learner(train_market_data)
+    learner.evaluate_learner(train_market_data, initial_cash=10_000, phase=Phase.TRAINING)
 
-    val_market_data = market_data.loc[val_start_date:val_end_date, ('TSLA', slice(None))]
+    initial_test_portfolio = create_initial_portfolio(10_000, ['TSLA', 'SPY'], [0, 0], test_start_date)
+    test_market_data = market_data.loc[test_start_date:test_end_date]
+    trades, updated_test_portfolio = learner.trade(test_market_data, initial_test_portfolio)
 
-    # Another way to slice it
-    # idx = pd.IndexSlice
-    # val_market_data = market_data.loc[val_start_date:val_end_date, idx['TSLA', :]]
-
-    current_portfolio = create_initial_portfolio(10_000, ['NOM', 'TSLA', 'SPY'], [0, 100, 30], datetime(2021, 2, 10))
-    
-    trades, updated_portfolio = learner.trade(val_market_data, current_portfolio)
+    val_market_data = market_data.loc[val_start_date:val_end_date]
+    initial_val_portfolio = create_initial_portfolio(10_000, ['TSLA', 'SPY'], [0, 0], val_start_date)    
+    trades, updated_val_portfolio = learner.trade(val_market_data, initial_val_portfolio)
 
     print('stop')
 
@@ -120,7 +118,9 @@ if __name__ == '__main__':
     
     main()
 
-
+    # Another way to slice it
+    # idx = pd.IndexSlice
+    # val_market_data = market_data.loc[val_start_date:val_end_date, idx['TSLA', :]]
 
 
 
